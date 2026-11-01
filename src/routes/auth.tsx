@@ -17,6 +17,7 @@ import { z } from "zod";
 import { WELCOME_BONUS_KEY } from "@/components/WelcomeBonus";
 import { shareImageMeta } from "@/lib/social-sharing";
 import { getRequestOrigin } from "@/lib/origin.functions";
+import { fetchPlatformConfig, usePlatformConfig } from "@/lib/platform-config";
 
 
 /** Blocks suspended accounts: signs them straight back out. */
@@ -98,6 +99,7 @@ function IconInput(props: React.InputHTMLAttributes<HTMLInputElement> & { icon: 
 }
 
 function AuthPage() {
+  const { data: platformConfig } = usePlatformConfig();
   const { t } = useI18n();
   const [mode, setMode] = useState<"signin" | "signup">("signin");
   const [loading, setLoading] = useState(false);
@@ -174,6 +176,8 @@ function AuthPage() {
     setErrors({});
     setLoading(true);
     try {
+      const config = await fetchPlatformConfig();
+      if (!config.registrations) throw new Error("New registrations are currently closed.");
       let inviteOk = false;
       try { inviteOk = (await checkInvite({ data: { code: inviteCode.trim() } })).valid; } catch { inviteOk = false; }
       if (!inviteOk) {
@@ -224,7 +228,7 @@ function AuthPage() {
         <div className="bg-card border border-border rounded-xl p-5 shadow-sm">
           <div className="flex gap-2 mb-5">
             <button onClick={() => setMode("signin")} className={`flex-1 py-2 rounded-md text-sm font-semibold ${mode==="signin"?"bg-[var(--nrc-green)] text-primary-foreground":"bg-muted text-muted-foreground"}`}>{t("auth.signIn")}</button>
-            <button onClick={() => setMode("signup")} className={`flex-1 py-2 rounded-md text-sm font-semibold ${mode==="signup"?"bg-[var(--nrc-green)] text-primary-foreground":"bg-muted text-muted-foreground"}`}>{t("auth.signUp")}</button>
+            <button disabled={platformConfig?.registrations === false} onClick={() => setMode("signup")} className={`flex-1 py-2 rounded-md text-sm font-semibold disabled:opacity-50 ${mode==="signup"?"bg-[var(--nrc-green)] text-primary-foreground":"bg-muted text-muted-foreground"}`}>{t("auth.signUp")}</button>
           </div>
 
           {mode === "signin" ? (

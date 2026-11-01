@@ -26,11 +26,13 @@ export function useTaskSettings(userId: string | undefined) {
     enabled: !!userId,
     refetchInterval: 5000,
     queryFn: async () => {
-      const { data } = await supabase
+      if (!userId) return null;
+      const { data, error } = await supabase
         .from("user_task_settings")
         .select("*")
-        .eq("user_id", userId!)
+        .eq("user_id", userId)
         .maybeSingle();
+      if (error) throw error;
       return (data as TaskSettings | null) ?? null;
     },
   });
@@ -42,11 +44,13 @@ export function useExclusiveTasks(userId: string | undefined) {
     enabled: !!userId,
     refetchInterval: 5000,
     queryFn: async () => {
-      const { data } = await supabase
+      if (!userId) return [];
+      const { data, error } = await supabase
         .from("user_exclusive_tasks")
         .select("*")
-        .eq("user_id", userId!)
+        .eq("user_id", userId)
         .order("position", { ascending: true });
+      if (error) throw error;
       return (data ?? []) as ExclusiveTask[];
     },
   });

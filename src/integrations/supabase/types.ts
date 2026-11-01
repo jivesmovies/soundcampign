@@ -435,6 +435,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      admin_adjust_account_funds: {
+        Args: { p_delta: number; p_earned_delta?: number; p_user: string }
+        Returns: Json
+      }
       admin_owns_training: {
         Args: { _admin: string; _user: string }
         Returns: boolean
@@ -448,6 +452,10 @@ export type Database = {
       }
       is_registration_invite_valid: { Args: { code: string }; Returns: boolean }
       is_restricted_admin: { Args: { _user_id: string }; Returns: boolean }
+      save_platform_config_field: {
+        Args: { p_expected: Json; p_field: string; p_value: Json }
+        Returns: Json
+      }
       save_support_contact: {
         Args: {
           p_channel: string

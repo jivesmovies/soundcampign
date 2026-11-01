@@ -2,6 +2,7 @@ import { requireUserPanel } from "@/lib/role-guard";
 import { createFileRoute } from "@tanstack/react-router";
 import { AppShell } from "@/components/AppShell";
 import { useMe } from "@/lib/hooks";
+import { usePlatformConfig } from "@/lib/platform-config";
 
 export const Route = createFileRoute("/_authenticated/terms")({
   beforeLoad: () => requireUserPanel(),
@@ -32,18 +33,19 @@ const SECTIONS = [
 
 function TermsPage() {
   const { data: me } = useMe();
+  const { data: config } = usePlatformConfig();
   return (
     <AppShell title="Terms & Conditions" isAdmin={me?.isAdmin}>
       <h1 className="text-2xl md:text-3xl font-black">Terms & Conditions</h1>
       <p className="text-sm text-muted-foreground">Last updated: January 2026</p>
-      <div className="mt-5 space-y-3">
+      {config?.terms ? <section className="mt-5 whitespace-pre-wrap text-sm leading-relaxed">{config.terms}</section> : <div className="mt-5 space-y-3">
         {SECTIONS.map((s) => (
           <div key={s.title} className="bg-card border border-border rounded-xl p-4">
             <div className="font-bold">{s.title}</div>
             <p className="text-sm text-muted-foreground mt-1">{s.body}</p>
           </div>
         ))}
-      </div>
+      </div>}
     </AppShell>
   );
 }

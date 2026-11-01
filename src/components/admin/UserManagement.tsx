@@ -9,6 +9,7 @@ import { LEVEL_FOR_TIER_INDEX, WAREHOUSE_GROUPS, WAREHOUSE_TIERS, groupLabelForS
 import { useWarehouseSongs } from "@/lib/settings";
 import { useExclusiveTasks, useTaskSettings } from "@/lib/exclusive";
 import { pairAccounts, matchesAccount } from "@/lib/account-pairing";
+import { adjustAdminAccountFunds } from "@/lib/admin-funds";
 
 import { useServerFn } from "@tanstack/react-start";
 import { deleteUserAccount, updateUserAccount, listUserAccounts } from "@/lib/admin.functions";
@@ -176,6 +177,7 @@ export function UserDetail({ user, onBack }: { user: any; onBack: () => void }) 
     },
     onSuccess: (next) => {
       qc.invalidateQueries({ queryKey: ["admin-users"] });
+      qc.invalidateQueries({ queryKey: ["training-accounts"] });
       toast.success(next ? "User suspended — they can no longer sign in" : "User unsuspended");
     },
     onError: (e: any) => toast.error(e.message),
@@ -243,9 +245,11 @@ export function UserDetail({ user, onBack }: { user: any; onBack: () => void }) 
       const { error } = await supabase.from("mock_transactions").delete()
         .eq("user_id", user.id).eq("kind", "promotion");
       if (error) throw error;
-      await supabase.from("user_task_settings")
+      const { error: settingsError } = await supabase.from("user_task_settings")
         .upsert({ user_id: user.id, group_seed: (settings?.group_seed ?? 0) + 1, upgrade_position: null, group_assigned: false }, { onConflict: "user_id" });
-      await supabase.from("user_exclusive_tasks").delete().eq("user_id", user.id);
+      if (settingsError) throw settingsError;
+      const { error: premiumError } = await supabase.from("user_exclusive_tasks").delete().eq("user_id", user.id);
+      if (premiumError) throw premiumError;
       return quota;
     },
 
@@ -270,7 +274,8 @@ export function UserDetail({ user, onBack }: { user: any; onBack: () => void }) 
       const { error } = await supabase.from("user_task_settings")
         .upsert({ user_id: user.id, group_seed: nextSeed, group_assigned: false }, { onConflict: "user_id" });
       if (error) throw error;
-      await supabase.from("user_exclusive_tasks").delete().eq("user_id", user.id).eq("consumed", false);
+      const { error: premiumError } = await supabase.from("user_exclusive_tasks").delete().eq("user_id", user.id).eq("consumed", false);
+      if (premiumError) throw premiumError;
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["task-settings", user.id] });
@@ -554,6 +559,7 @@ function EditUserDialog({ user, open, onClose }: { user: any; open: boolean; onC
       qc.invalidateQueries({ queryKey: ["admin-tx"] });
       qc.invalidateQueries({ queryKey: ["me"] });
       toast.success("User details updated");
+      qc.invalidateQueries({ queryKey: ["training-accounts"] });
       onClose();
     },
     onError: (e: any) => toast.error(e.message),
@@ -609,12 +615,14 @@ function FundsDialog({ user, onHold, open, onClose }: { user: any; onHold: numbe
 
   /** Reduce a user's on-hold (pending) rows by `amt`; returns the amount actually released. */
   const releaseHold = async (amt: number) => {
-    const { data: pend } = await supabase
+    const { data: pend, error: readError } = await supabase
       .from("mock_transactions")
       .select("id,amount")
       .eq("user_id", user.id)
       .eq("status", "pending")
+      .eq("kind", "promotion")
       .order("created_at", { ascending: true });
+    if (readError) throw readError;
     let left = amt;
     for (const row of pend ?? []) {
       if (left <= 0) break;
@@ -634,16 +642,15 @@ function FundsDialog({ user, onHold, open, onClose }: { user: any; onHold: numbe
   };
 
   const setProfile = async (patch: { balance?: number; total_earned?: number }) => {
-    const { error } = await supabase.from("profiles").update(patch).eq("id", user.id);
+    const { error } = await supabase.from("profiles").update(patch).eq("id", user.id).select("id").single();
     if (error) throw error;
   };
 
   const apply = useMutation({
     mutationFn: async () => {
       const amt = Number(amount || 0);
-      if (!amt || amt <= 0) throw new Error("Enter an amount greater than 0");
+      if (!Number.isFinite(amt) || amt <= 0) throw new Error("Enter an amount greater than 0");
       const balance = Number(user.balance);
-      const earned = Number(user.total_earned);
 
       // Return Balance: move held funds back into the wallet balance.
       if (mode === "return") {
@@ -654,6 +661,11 @@ function FundsDialog({ user, onHold, open, onClose }: { user: any; onHold: numbe
       }
 
       const sign = mode === "deduct" ? -1 : 1;
+
+      if (target === "balance" || target === "today") {
+        await adjustAdminAccountFunds(user.id, amt, mode, target);
+        return `${sign > 0 ? "Added" : "Deducted"} $${amt.toFixed(2)} ${sign > 0 ? "to" : "from"} ${target === "today" ? "today's earnings" : "balance"}`;
+      }
 
       if (target === "hold") {
         if (sign > 0) {
@@ -669,16 +681,6 @@ function FundsDialog({ user, onHold, open, onClose }: { user: any; onHold: numbe
         return `Deducted $${released.toFixed(2)} from On Hold`;
       }
 
-      if (target === "today") {
-        await setProfile({
-          total_earned: Number((earned + sign * amt).toFixed(2)),
-          balance: Number((balance + sign * amt).toFixed(2)),
-        });
-        return `${sign > 0 ? "Added" : "Deducted"} $${amt.toFixed(2)} ${sign > 0 ? "to" : "from"} today's earnings`;
-      }
-
-      await setProfile({ balance: Number((balance + sign * amt).toFixed(2)) });
-      return `${sign > 0 ? "Added" : "Deducted"} $${amt.toFixed(2)} ${sign > 0 ? "to" : "from"} balance`;
     },
     onSuccess: (msg) => {
       qc.invalidateQueries({ queryKey: ["admin-users"] });
@@ -687,6 +689,7 @@ function FundsDialog({ user, onHold, open, onClose }: { user: any; onHold: numbe
       qc.invalidateQueries({ queryKey: ["on-hold"] });
       qc.invalidateQueries({ queryKey: ["my-tx"] });
       qc.invalidateQueries({ queryKey: ["today-promos"] });
+      qc.invalidateQueries({ queryKey: ["training-accounts"] });
       toast.success(msg ?? "Funds updated");
       setAmount("");
       onClose();
@@ -732,7 +735,7 @@ function FundsDialog({ user, onHold, open, onClose }: { user: any; onHold: numbe
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>Cancel</Button>
-          <Button onClick={() => apply.mutate()}>
+          <Button disabled={apply.isPending} onClick={() => apply.mutate()}>
             {mode === "deduct" ? "Deduct" : mode === "return" ? "Return" : "Add"} ${Number(amount || 0).toFixed(2)}
           </Button>
         </DialogFooter>
@@ -927,7 +930,8 @@ function GroupDialog({ user, tierLabel, quota, current, used, open, onClose }: {
       const { error } = await supabase.from("user_task_settings")
         .upsert({ user_id: user.id, group_seed: seed, group_assigned: true }, { onConflict: "user_id" });
       if (error) throw error;
-      await supabase.from("user_exclusive_tasks").delete().eq("user_id", user.id).eq("consumed", false);
+      const { error: premiumError } = await supabase.from("user_exclusive_tasks").delete().eq("user_id", user.id).eq("consumed", false);
+      if (premiumError) throw premiumError;
       return seed;
     },
     onSuccess: (seed) => {
@@ -998,7 +1002,8 @@ function RewardDialog({ user, open, onClose }: { user: any; open: boolean; onClo
       const value = Number(amount);
       if (!isFinite(value) || value <= 0) throw new Error("Enter a valid prize amount");
       // one active event per user at a time
-      await supabase.from("user_rewards").delete().eq("user_id", user.id).eq("status", "available");
+      const { error: removeError } = await supabase.from("user_rewards").delete().eq("user_id", user.id).eq("status", "available");
+      if (removeError) throw removeError;
       const { error } = await supabase.from("user_rewards")
         .insert({ user_id: user.id, kind, amount: value, note: note || null });
       if (error) throw error;

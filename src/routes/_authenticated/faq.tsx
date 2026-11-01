@@ -3,6 +3,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { AppShell } from "@/components/AppShell";
 import { useMe } from "@/lib/hooks";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { usePlatformConfig } from "@/lib/platform-config";
 
 export const Route = createFileRoute("/_authenticated/faq")({
   beforeLoad: () => requireUserPanel(),
@@ -22,7 +23,7 @@ export const Route = createFileRoute("/_authenticated/faq")({
 const FAQS = [
   { q: "What is SoundCampaign?", a: "SoundCampaign is a music promotion platform that helps artists get their tracks placed on curated playlists across Spotify, Apple Music, YouTube Music, SoundCloud, Tidal and Deezer." },
   { q: "How do daily tasks work?", a: "Every day your tier unlocks a set number of promotion tasks. Each task lets you rate and submit a track from our warehouse; approved tasks credit commission to your balance." },
-  { q: "How do I upgrade my tier?", a: "Open Activities → Membership Level Chart and tap Upgrade on the tier you want. Deposits activate the new task quota and commission rate immediately." },
+  { q: "How do I upgrade my tier?", a: "Open Salary → Membership Level Chart, tap Upgrade and confirm. Your request stays pending until the Super Admin approves it; adding funds alone does not change your level." },
   { q: "When can I withdraw?", a: "Withdrawals can be requested from the Wallet page during platform operating hours (10:00 – 22:59). Admin review typically completes within one business day." },
   { q: "What are the operating hours?", a: "Tasks and withdrawals are available daily from 10:00 to 22:59 local time. Outside those hours the START button will be disabled." },
   { q: "How do I contact support?", a: "Tap Services on the dashboard to open Live Chat, WhatsApp or Telegram — an admin will respond as soon as possible." },
@@ -32,11 +33,12 @@ const FAQS = [
 
 function FaqPage() {
   const { data: me } = useMe();
+  const { data: config } = usePlatformConfig();
   return (
     <AppShell title="FAQ" isAdmin={me?.isAdmin}>
       <h1 className="text-2xl md:text-3xl font-black">Frequently Asked Questions</h1>
       <p className="text-sm text-muted-foreground">Can't find your answer? Tap Services on the dashboard to talk to an admin.</p>
-      <div className="mt-5 bg-card border border-border rounded-xl p-2 md:p-4">
+      {config?.faq ? <section className="mt-5 whitespace-pre-wrap text-sm leading-relaxed">{config.faq}</section> : <div className="mt-5 bg-card border border-border rounded-xl p-2 md:p-4">
         <Accordion type="single" collapsible>
           {FAQS.map((f, i) => (
             <AccordionItem key={i} value={`i-${i}`}>
@@ -45,7 +47,7 @@ function FaqPage() {
             </AccordionItem>
           ))}
         </Accordion>
-      </div>
+      </div>}
     </AppShell>
   );
 }

@@ -1,14 +1,11 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { adminAccountSchema, provisionAdminAccount } from "@/lib/admin-account";
+import { assertAdminAccess, checkSuperAdmin } from "@/lib/admin-access";
+import { provisionTrainingAccount, trainingAccountSchema } from "@/lib/training-account";
 
 async function assertAdmin(context: { supabase: any; userId: string }) {
-  const { data: isAdmin, error } = await context.supabase.rpc("has_role", {
-    _user_id: context.userId,
-    _role: "admin",
-  });
-  if (error) throw new Error(error.message);
-  if (!isAdmin) throw new Error("Forbidden");
+  await assertAdminAccess(context);
 }
 
 /** Only the Super Admin may change data; restricted admins are read-only. */
@@ -22,15 +19,15 @@ async function assertSuperAdmin(context: { supabase: any; userId: string }) {
 }
 
 async function isSuperAdmin(context: { supabase: any; userId: string }) {
-  const { data } = await context.supabase.rpc("has_role", { _user_id: context.userId, _role: "super_admin" });
-  return !!data;
+  return checkSuperAdmin(context);
 }
 
 /** Super Admin, or a restricted admin acting on a training account they created. */
 async function assertSuperOrOwner(context: { supabase: any; userId: string }, targetId: string) {
   await assertAdmin(context);
   if (await isSuperAdmin(context)) return;
-  const { data } = await context.supabase.rpc("admin_owns_training", { _admin: context.userId, _user: targetId });
+  const { data, error } = await context.supabase.rpc("admin_owns_training", { _admin: context.userId, _user: targetId });
+  if (error) throw new Error(error.message);
   if (!data) throw new Error("Forbidden: you can only manage training accounts you created");
 }
 
@@ -62,58 +59,12 @@ export type TrainingInput = {
 /** Create a virtual/training account that can log in to the user panel. Admin only. */
 export const createTrainingAccount = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: TrainingInput) => input)
+  .inputValidator((input) => trainingAccountSchema.parse(input))
   .handler(async ({ data, context }) => {
     await assertAdmin(context);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
-    const { data: created, error } = await supabaseAdmin.auth.admin.createUser({
-      email: data.email.trim().toLowerCase(),
-      password: data.password,
-      email_confirm: true,
-      user_metadata: {
-        username: data.username,
-        display_name: data.displayName || data.username,
-      },
-    });
-    if (error) throw new Error(error.message);
-    const uid = created.user!.id;
-
-    // resolve referrer from invitation code
-    let referredBy: string | null = null;
-    const code = data.inviteCode?.trim();
-    if (code) {
-      const { data: ref } = await supabaseAdmin
-        .from("profiles").select("id").ilike("invite_code", code).maybeSingle();
-      if (!ref) {
-        await supabaseAdmin.auth.admin.deleteUser(uid);
-        throw new Error("Invitation code not found");
-      }
-      referredBy = ref.id;
-    }
-
-    const { error: upErr } = await supabaseAdmin.from("profiles").upsert({
-      id: uid,
-      username: data.username,
-      display_name: data.displayName || data.username,
-      phone: data.phone || null,
-      balance: data.balance ?? 0,
-      vip_level: data.vipLevel ?? 0,
-      is_training: true,
-      referred_by: referredBy,
-      created_by: context.userId,
-    });
-    if (upErr) throw new Error(upErr.message);
-
-    if (referredBy) {
-      const { data: refProf } = await supabaseAdmin
-        .from("profiles").select("team_size").eq("id", referredBy).maybeSingle();
-      await supabaseAdmin.from("profiles")
-        .update({ team_size: Number(refProf?.team_size ?? 0) + 1 })
-        .eq("id", referredBy);
-    }
-
-    return { ok: true, userId: uid };
+    return provisionTrainingAccount(supabaseAdmin, data, context.userId);
   });
 
 /** List all training accounts with their referrer. Admin only. */
@@ -219,12 +170,16 @@ export const deleteAllTrainingAccounts = createServerFn({ method: "POST" })
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     let q = supabaseAdmin.from("profiles").select("id").eq("is_training", true);
     if (!superAdmin) q = q.eq("created_by", context.userId);
-    const { data: rows } = await q;
+    const { data: rows, error: listError } = await q;
+    if (listError) throw new Error(listError.message);
+    let count = 0;
     for (const r of rows ?? []) {
       if (r.id === context.userId) continue;
-      await supabaseAdmin.auth.admin.deleteUser(r.id);
+      const { error } = await supabaseAdmin.auth.admin.deleteUser(r.id);
+      if (error) throw new Error(`Deleted ${count} accounts. ${error.message}`);
+      count += 1;
     }
-    return { ok: true, count: (rows ?? []).length };
+    return { ok: true, count };
   });
 
 /**
@@ -354,8 +309,9 @@ export const setAdminRole = createServerFn({ method: "POST" })
     await assertSuperAdmin(context);
     if (data.userId === context.userId) throw new Error("You cannot change your own role");
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { data: target } = await supabaseAdmin.from("user_roles")
+    const { data: target, error: roleError } = await supabaseAdmin.from("user_roles")
       .select("role").eq("user_id", data.userId);
+    if (roleError) throw new Error(roleError.message);
     if ((target ?? []).some((r) => r.role === "super_admin")) throw new Error("Super Admin roles cannot be changed");
     if (data.makeAdmin) {
       if (!(target ?? []).some((r) => r.role === "admin")) {

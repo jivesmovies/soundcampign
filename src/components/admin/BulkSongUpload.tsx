@@ -18,7 +18,7 @@ type Props = {
   existing: Song[];
   /** Indices into `existing` that the uploaded items should replace, in order. Defaults to 0..n. */
   targets?: number[];
-  onApply: (songs: Song[]) => void;
+  onApply: (songs: Song[]) => void | Promise<void>;
 };
 
 /** Bulk-upload album art, titles and audio files into a warehouse group. */
@@ -72,7 +72,7 @@ export function BulkSongUpload({ open, onClose, groupLabel, existing, targets, o
           commission: commission.trim() ? Number(commission) : base.commission,
         };
       }
-      onApply(next);
+      await onApply(next);
       toast.success(`${count} song${count > 1 ? "s" : ""} uploaded to ${groupLabel}`);
       reset();
       onClose();
