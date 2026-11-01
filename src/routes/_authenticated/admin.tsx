@@ -351,15 +351,18 @@ function SongWarehouse() {
         <div className="text-[11px] text-muted-foreground">♪ Audio attached</div>
         <div className="mt-3 flex items-center gap-1 border-t pt-2">
           <Button size="sm" variant="ghost" className="flex-1 h-8"
+            aria-label={`Play ${s.name}`}
             onClick={(e) => { e.stopPropagation(); const a = new Audio(s.audio); a.play().catch(() => {}); }}>
             ▶
           </Button>
           {!readOnly && (<>
           <Button size="sm" variant="ghost" className="flex-1 h-8"
+            aria-label={`Edit ${s.name}`}
             onClick={(e) => { e.stopPropagation(); setEditing({ key: k, song: s }); }}>
             <Edit3 className="h-3.5 w-3.5" />
           </Button>
           <Button size="sm" variant="ghost" className="flex-1 h-8 text-destructive"
+            aria-label={`Delete ${s.name}`}
             onClick={(e) => { e.stopPropagation(); deleteSong(k, s.id); }}>
             <Trash2 className="h-3.5 w-3.5" />
           </Button>
