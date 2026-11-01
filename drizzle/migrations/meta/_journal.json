@@ -71,6 +71,13 @@
       "when": 1792752699294,
       "tag": "0009_restricted_admin_owned_training",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1793533739139,
+      "tag": "0010_functional_platform_management",
+      "breakpoints": true
     }
   ]
 }
