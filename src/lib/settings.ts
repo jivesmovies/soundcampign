@@ -10,11 +10,12 @@ export const DEFAULT_ADDRESSES: DepositAddresses = Object.fromEntries(
 ) as DepositAddresses;
 
 export async function fetchDepositAddresses(): Promise<DepositAddresses> {
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from("platform_settings")
     .select("value")
     .eq("key", "deposit_addresses")
     .maybeSingle();
+  if (error) throw error;
   const value = (data?.value ?? {}) as Partial<DepositAddresses>;
   return { ...DEFAULT_ADDRESSES, ...value };
 }
@@ -44,10 +45,11 @@ export function useTrendingSongs() {
   return useQuery({
     queryKey: ["trending-songs"],
     queryFn: async () => {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from("trending_songs")
         .select("id, position, title, artist, poster, audio_url, duration")
         .order("position", { ascending: true });
+      if (error) throw error;
       return (data ?? []) as TrendingSong[];
     },
   });
@@ -68,11 +70,12 @@ export async function uploadTrendingMedia(file: File) {
 export type WarehouseSongMap = Record<string, import("@/lib/warehouse").Song[]>;
 
 export async function fetchWarehouseSongs(): Promise<WarehouseSongMap> {
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from("platform_settings")
     .select("value")
     .eq("key", "warehouse_songs")
     .maybeSingle();
+  if (error) throw error;
   const map = (data?.value ?? {}) as WarehouseSongMap;
   const { realAudio } = await import("@/lib/warehouse");
   const out: WarehouseSongMap = {};

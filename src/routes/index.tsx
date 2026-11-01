@@ -200,6 +200,7 @@ function Numbered({ i }: { i: number }) {
 }
 
 function Landing() {
+  const { data: config } = usePlatformConfig();
   const { t } = useI18n();
   const [openFaq, setOpenFaq] = useState<number | null>(0);
   const [showAllTestimonials, setShowAllTestimonials] = useState(true);
@@ -488,7 +489,7 @@ function Landing() {
               <div className="flex items-center gap-3">
                 {t.avatar ? (
                   <img
-                    src={t.avatar}
+                    src={config?.testimonials[i] ?? t.avatar}
                     onError={handleImageError}
                     alt={`${t.name}, ${t.role}`}
                     loading="lazy"

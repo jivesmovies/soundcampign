@@ -17,6 +17,7 @@ import { toast } from "sonner";
 import { UserDetail } from "@/components/admin/UserManagement";
 import { Settings2 } from "lucide-react";
 import { WAREHOUSE_TIERS, LEVEL_FOR_TIER_INDEX, tierIndexForLevel } from "@/lib/warehouse";
+import { useAdminReadOnly } from "@/lib/admin-permissions";
 
 type Row = Awaited<ReturnType<typeof listTrainingAccounts>>[number];
 
@@ -26,6 +27,7 @@ const blank = {
 };
 
 export function TrainingAccounts() {
+  const readOnly = useAdminReadOnly();
   const qc = useQueryClient();
   const list = useServerFn(listTrainingAccounts);
   const create = useServerFn(createTrainingAccount);
@@ -95,7 +97,7 @@ export function TrainingAccounts() {
 
   const removeAll = useMutation({
     mutationFn: () => delAll({ data: undefined as never }),
-    onSuccess: () => { toast.success("All training accounts deleted"); refresh(); },
+    onSuccess: (result) => { toast.success(`${result.count} training accounts deleted`); refresh(); },
     onError: (e: Error) => toast.error(e.message),
   });
 
@@ -118,9 +120,9 @@ export function TrainingAccounts() {
         <Button
           variant="destructive"
           disabled={!rows.length || removeAll.isPending}
-          onClick={() => removeAll.mutate()}
+          onClick={() => { if (confirm(`Permanently delete ${readOnly ? "all training accounts you created" : "all training accounts"}?`)) removeAll.mutate(); }}
         >
-          <Trash2 className="w-4 h-4 mr-1" /> Delete All ({rows.length})
+          <Trash2 className="w-4 h-4 mr-1" /> {readOnly ? "Delete My Accounts" : "Delete All"} ({rows.length})
         </Button>
       </div>
 
@@ -178,7 +180,7 @@ export function TrainingAccounts() {
                 <Edit3 className="w-4 h-4 mr-1" /> Edit
               </Button>
               <Button variant="destructive" size="sm" disabled={remove.isPending}
-                onClick={() => remove.mutate(r.id)}>
+                onClick={() => { if (confirm(`Permanently delete ${r.username}?`)) remove.mutate(r.id); }}>
                 <Trash2 className="w-4 h-4 mr-1" /> Delete
               </Button>
             </div>
