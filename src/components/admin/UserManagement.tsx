@@ -9,6 +9,7 @@ import { LEVEL_FOR_TIER_INDEX, WAREHOUSE_GROUPS, WAREHOUSE_TIERS, groupLabelForS
 import { useWarehouseSongs } from "@/lib/settings";
 import { useExclusiveTasks, useTaskSettings } from "@/lib/exclusive";
 import { pairAccounts, matchesAccount } from "@/lib/account-pairing";
+import { adjustAdminAccountFunds } from "@/lib/admin-funds";
 
 import { useServerFn } from "@tanstack/react-start";
 import { deleteUserAccount, updateUserAccount, listUserAccounts } from "@/lib/admin.functions";
@@ -558,6 +559,7 @@ function EditUserDialog({ user, open, onClose }: { user: any; open: boolean; onC
       qc.invalidateQueries({ queryKey: ["admin-tx"] });
       qc.invalidateQueries({ queryKey: ["me"] });
       toast.success("User details updated");
+      qc.invalidateQueries({ queryKey: ["training-accounts"] });
       onClose();
     },
     onError: (e: any) => toast.error(e.message),
@@ -613,12 +615,14 @@ function FundsDialog({ user, onHold, open, onClose }: { user: any; onHold: numbe
 
   /** Reduce a user's on-hold (pending) rows by `amt`; returns the amount actually released. */
   const releaseHold = async (amt: number) => {
-    const { data: pend } = await supabase
+    const { data: pend, error: readError } = await supabase
       .from("mock_transactions")
       .select("id,amount")
       .eq("user_id", user.id)
       .eq("status", "pending")
+      .eq("kind", "promotion")
       .order("created_at", { ascending: true });
+    if (readError) throw readError;
     let left = amt;
     for (const row of pend ?? []) {
       if (left <= 0) break;
@@ -647,7 +651,6 @@ function FundsDialog({ user, onHold, open, onClose }: { user: any; onHold: numbe
       const amt = Number(amount || 0);
       if (!Number.isFinite(amt) || amt <= 0) throw new Error("Enter an amount greater than 0");
       const balance = Number(user.balance);
-      const earned = Number(user.total_earned);
 
       // Return Balance: move held funds back into the wallet balance.
       if (mode === "return") {
@@ -660,8 +663,7 @@ function FundsDialog({ user, onHold, open, onClose }: { user: any; onHold: numbe
       const sign = mode === "deduct" ? -1 : 1;
 
       if (target === "balance" || target === "today") {
-        const { error } = await supabase.rpc("admin_adjust_account_funds", { p_user: user.id, p_delta: sign * amt, p_earned_delta: target === "today" ? sign * amt : 0 });
-        if (error) throw error;
+        await adjustAdminAccountFunds(user.id, amt, mode, target);
         return `${sign > 0 ? "Added" : "Deducted"} $${amt.toFixed(2)} ${sign > 0 ? "to" : "from"} ${target === "today" ? "today's earnings" : "balance"}`;
       }
 
@@ -687,6 +689,7 @@ function FundsDialog({ user, onHold, open, onClose }: { user: any; onHold: numbe
       qc.invalidateQueries({ queryKey: ["on-hold"] });
       qc.invalidateQueries({ queryKey: ["my-tx"] });
       qc.invalidateQueries({ queryKey: ["today-promos"] });
+      qc.invalidateQueries({ queryKey: ["training-accounts"] });
       toast.success(msg ?? "Funds updated");
       setAmount("");
       onClose();
