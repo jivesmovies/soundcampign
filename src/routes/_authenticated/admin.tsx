@@ -192,6 +192,7 @@ function SongWarehouse() {
   const groupKey = (d: number, g: string) => `${tier}-${d}-${g}`;
   const getSongs = (d: number, g: string, count: number) => {
     const k = groupKey(d, g);
+    if (savedMap?.[k]) return savedMap[k];
     if (!songMap[k]) {
       const generated = makeSongs(tier, d, g, count);
       // seed lazily
@@ -229,6 +230,7 @@ function SongWarehouse() {
   };
 
   const getPremium = () => {
+    if (savedMap?.[premiumKey]) return savedMap[premiumKey];
     if (!songMap[premiumKey]) {
       const generated = premiumSongs(tier);
       setTimeout(() => setSongMap((m) => (m[premiumKey] ? m : { ...m, [premiumKey]: generated })), 0);
@@ -371,6 +373,8 @@ function SongWarehouse() {
       </div>
     </div>
   );
+
+  if (!savedMap) return <div className="p-6 text-sm text-muted-foreground">Loading warehouse…</div>;
 
   return (
     <div className="space-y-6">
