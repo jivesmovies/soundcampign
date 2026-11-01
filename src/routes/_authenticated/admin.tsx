@@ -157,6 +157,7 @@ const WAREHOUSE_TIERS = [
 ] as const;
 
 function SongWarehouse() {
+  const qc = useQueryClient();
   const [tier, setTier] = useState<typeof WAREHOUSE_TIERS[number]["key"]>("basic");
   const [openDay, setOpenDay] = useState<number | null>(1);
   const [openGroup, setOpenGroup] = useState<string | null>("A");
@@ -165,21 +166,23 @@ function SongWarehouse() {
   const { data: savedMap } = useWarehouseSongs();
   const readOnly = useAdminReadOnly();
 
-  // Load persisted warehouse songs (admin edits) once fetched; local edits win.
+  // Saved data stays authoritative across other administrator sessions.
   useEffect(() => {
-    if (savedMap) setSongMap((m) => ({ ...savedMap, ...m }));
+    if (savedMap) setSongMap(savedMap);
   }, [savedMap]);
 
   /** Persist the whole map so price edits reach the exclusive-task dialog instantly. */
-  const persistMap = (m: Record<string, Song[]>) => {
-    if (readOnly) return;
-    saveWarehouseSongs(m).catch((e: any) => toast.error(e?.message ?? "Couldn't save warehouse"));
+  const persistMap = async (m: Record<string, Song[]>) => {
+    if (readOnly) throw new Error("Only the Super Admin can change the warehouse");
+    await saveWarehouseSongs(m);
+    setSongMap(m);
+    qc.setQueryData(["warehouse-songs"], m);
   };
   const [bulk, setBulk] = useState<{ key: string; label: string; songs: Song[]; targets: number[] } | null>(null);
   const [sel, setSel] = useState<Record<string, string[]>>({});
   const [pickN, setPickN] = useState("5");
 
-  const current = WAREHOUSE_TIERS.find((t) => t.key === tier)!;
+  const current = WAREHOUSE_TIERS.find((t) => t.key === tier) ?? WAREHOUSE_TIERS[0];
   const days = [1, 2, 3, 4, 5];
   const perDay = current.perSub * 2;
   const premiumCount = 5;
@@ -198,19 +201,14 @@ function SongWarehouse() {
     return songMap[k];
   };
 
-  const updateSong = (k: string, updated: Song) => {
-    setSongMap((m) => {
-      const next = { ...m, [k]: (m[k] || []).map((s) => (s.id === updated.id ? updated : s)) };
-      persistMap(next);
-      return next;
-    });
+  const updateSong = async (k: string, updated: Song) => {
+    await persistMap({ ...songMap, [k]: (songMap[k] || []).map((s) => s.id === updated.id ? updated : s) });
   };
-  const deleteSong = (k: string, id: string) => {
-    setSongMap((m) => {
-      const next = { ...m, [k]: (m[k] || []).filter((s) => s.id !== id) };
-      persistMap(next);
-      return next;
-    });
+  const deleteSong = async (k: string, id: string) => {
+    try {
+      await persistMap({ ...songMap, [k]: (songMap[k] || []).filter((s) => s.id !== id) });
+      toast.success("Song removed");
+    } catch (e) { toast.error(e instanceof Error ? e.message : "Could not remove song"); }
   };
 
   // ---- selection helpers (per group key) ----
@@ -474,8 +472,9 @@ function SongWarehouse() {
       <EditSongDialog
         editing={editing}
         onClose={() => setEditing(null)}
-        onSave={(updated) => {
-          if (editing) updateSong(editing.key, updated);
+        onSave={async (updated) => {
+          if (!editing) return;
+          await updateSong(editing.key, updated);
           setEditing(null);
           toast.success("Song updated");
         }}
@@ -487,7 +486,7 @@ function SongWarehouse() {
         existing={bulk?.songs ?? []}
         targets={bulk?.targets}
         onClose={() => setBulk(null)}
-        onApply={(songs) => { if (bulk) setSongMap((m) => { const next = { ...m, [bulk.key]: songs }; persistMap(next); return next; }); }}
+        onApply={async (songs) => { if (bulk) await persistMap({ ...songMap, [bulk.key]: songs }); }}
       />
     </div>
   );
@@ -498,10 +497,11 @@ function EditSongDialog({
 }: {
   editing: { key: string; song: Song } | null;
   onClose: () => void;
-  onSave: (s: Song) => void;
+  onSave: (s: Song) => Promise<void>;
 }) {
   const [draft, setDraft] = useState<Song | null>(null);
-  useMemo(() => { setDraft(editing?.song ?? null); }, [editing]);
+  const [saving, setSaving] = useState(false);
+  useEffect(() => { setDraft(editing?.song ?? null); }, [editing]);
   if (!editing || !draft) return null;
   const profit = ((draft.amount * draft.commission) / 100).toFixed(2);
   return (
@@ -543,8 +543,12 @@ function EditSongDialog({
           <div className="text-sm text-orange-500 font-medium">Profit: ${profit}</div>
         </div>
         <DialogFooter>
-          <Button className="w-full bg-orange-500 hover:bg-orange-600" onClick={() => onSave(draft)}>
-            Save Changes
+          <Button className="w-full bg-orange-500 hover:bg-orange-600" disabled={saving} onClick={async () => {
+            if (!Number.isFinite(draft.amount) || draft.amount <= 0 || !Number.isFinite(draft.commission) || draft.commission < 0) return toast.error("Enter a valid cost and commission");
+            setSaving(true);
+            try { await onSave(draft); } catch (e) { toast.error(e instanceof Error ? e.message : "Could not save song"); } finally { setSaving(false); }
+          }}>
+            {saving ? "Saving…" : "Save Changes"}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -1259,7 +1263,8 @@ function Announcements() {
       const { error } = await supabase.from("announcements").update({ active: !r.active }).eq("id", r.id);
       if (error) throw error;
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["announcements"] }),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["announcements"] }); toast.success("Announcement updated"); },
+    onError: (e: Error) => toast.error(e.message),
   });
   const remove = useMutation({
     mutationFn: async (id: string) => {
@@ -1278,7 +1283,7 @@ function Announcements() {
       </div>
       <div className="bg-card border border-border rounded-xl p-4 space-y-3">
         <Textarea placeholder="New announcement…" value={text} onChange={(e)=>setText(e.target.value)} rows={2} />
-        <Button onClick={()=> text.trim() && create.mutate(text.trim())} disabled={!text.trim()}>
+        <Button onClick={()=> text.trim() && create.mutate(text.trim())} disabled={!text.trim() || create.isPending}>
           <Plus className="w-4 h-4 mr-1" /> Post
         </Button>
       </div>
