@@ -435,6 +435,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      admin_adjust_account_funds: {
+        Args: { p_delta: number; p_earned_delta?: number; p_user: string }
+        Returns: Json
+      }
       admin_owns_training: {
         Args: { _admin: string; _user: string }
         Returns: boolean
