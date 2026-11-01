@@ -3,6 +3,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { AppShell } from "@/components/AppShell";
 import { useMe } from "@/lib/hooks";
 import { Music2, Users, Globe2, Target } from "lucide-react";
+import { usePlatformConfig } from "@/lib/platform-config";
 
 export const Route = createFileRoute("/_authenticated/about")({
   beforeLoad: () => requireUserPanel(),
@@ -21,10 +22,13 @@ export const Route = createFileRoute("/_authenticated/about")({
 
 function AboutPage() {
   const { data: me } = useMe();
+  const { data: config } = usePlatformConfig();
   return (
     <AppShell title="About" isAdmin={me?.isAdmin}>
       <h1 className="text-2xl md:text-3xl font-black">About SoundCampaign</h1>
       <p className="text-sm text-muted-foreground">Helping independent artists go viral across the world's biggest music platforms.</p>
+
+      {config?.about ? <section className="mt-5 whitespace-pre-wrap text-sm leading-relaxed">{config.about}</section> : <>
 
       <section className="mt-5 rounded-2xl p-6 md:p-8 text-white"
         style={{ background: "linear-gradient(135deg, var(--nrc-green-dark), var(--nrc-green))" }}>
@@ -68,6 +72,7 @@ function AboutPage() {
           </ul>
         </div>
       </section>
+      </>}
     </AppShell>
   );
 }

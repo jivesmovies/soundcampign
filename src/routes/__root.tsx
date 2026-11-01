@@ -16,6 +16,7 @@ import { I18nProvider } from "../lib/i18n";
 import { SupportWidget } from "../components/SupportWidget";
 import { AutoTranslate } from "../components/AutoTranslate";
 import { Toaster } from "@/components/ui/sonner";
+import { usePlatformRealtime } from "@/lib/platform-realtime";
 
 function NotFoundComponent() {
   return (
@@ -129,6 +130,7 @@ function RootComponent() {
   return (
     <QueryClientProvider client={queryClient}>
       <I18nProvider>
+        <PlatformSync />
         {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
         <Outlet />
         <SupportWidget />
@@ -137,4 +139,9 @@ function RootComponent() {
       </I18nProvider>
     </QueryClientProvider>
   );
+}
+
+function PlatformSync() {
+  usePlatformRealtime();
+  return null;
 }

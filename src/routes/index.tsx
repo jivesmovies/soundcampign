@@ -9,6 +9,7 @@ import { useState, type SyntheticEvent } from "react";
 import { CountUp } from "@/components/CountUp";
 import { shareImageMeta } from "@/lib/social-sharing";
 import { getRequestOrigin } from "@/lib/origin.functions";
+import { usePlatformConfig } from "@/lib/platform-config";
 
 import { useI18n } from "@/lib/i18n";
 

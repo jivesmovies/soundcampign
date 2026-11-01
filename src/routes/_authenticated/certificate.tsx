@@ -5,6 +5,7 @@ import { useMe } from "@/lib/hooks";
 import { Award, FileBadge, Trophy, Download } from "lucide-react";
 import { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { usePlatformConfig } from "@/lib/platform-config";
 
 export const Route = createFileRoute("/_authenticated/certificate")({
   beforeLoad: () => requireUserPanel(),
@@ -29,11 +30,14 @@ const DOCS = [
 
 function CertificatePage() {
   const { data: me } = useMe();
+  const { data: config } = usePlatformConfig();
   const [open, setOpen] = useState<null | typeof DOCS[number]>(null);
   return (
     <AppShell title="Certificate" isAdmin={me?.isAdmin}>
       <h1 className="text-2xl md:text-3xl font-black">Certificates & Credentials</h1>
       <p className="text-sm text-muted-foreground">Verified documents that authorize SoundCampaign to operate.</p>
+
+      {!!config?.licenses.length && <section className="mt-5 grid gap-3 md:grid-cols-3">{config.licenses.map((url, i) => <a key={url} href={url} target="_blank" rel="noopener noreferrer" className="rounded-lg border border-border bg-card p-3">{/\.pdf(?:\?|$)/i.test(url) ? <FileBadge className="mx-auto h-16 w-16 text-primary" /> : <img src={url} alt={`Platform document ${i + 1}`} className="aspect-[4/3] w-full object-contain" />}<span className="mt-2 block text-sm font-semibold">View document {i + 1}</span></a>)}</section>}
 
       <div className="grid md:grid-cols-3 gap-3 mt-5">
         {DOCS.map((d) => (

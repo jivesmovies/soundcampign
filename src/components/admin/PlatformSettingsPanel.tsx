@@ -18,6 +18,7 @@ import {
 import { Loader2, Music2, Trash2, Upload } from "lucide-react";
 import { EventsRewardsEditor, MembershipChartEditor } from "@/components/admin/EventsRewardsEditor";
 import { SupportContactEditor } from "@/components/admin/SupportContactEditor";
+import { PlatformConfigEditor } from "@/components/admin/PlatformConfigEditor";
 
 type RowKey =
   | "maintenance" | "registrations" | "bonuses" | "wallets" | "whatsapp" | "telegram"
@@ -42,17 +43,6 @@ const ROWS: { key: RowKey; title: string; desc: string; icon: typeof Wrench; ton
 
 export function PlatformSettingsPanel() {
   const [open, setOpen] = useState<RowKey | null>("maintenance");
-  const [maintenance, setMaintenance] = useState(false);
-  const [registrations, setRegistrations] = useState(true);
-  const [text, setText] = useState<Record<string, string>>({
-    bonuses: "Welcome bonus: $10 · Trial group: Normal (30 tracks)",
-    events: "Salary earning: Working days 5 $800 · Working days 15 $1,500 · Working days 30 $3,800",
-    testimonials: "12 testimonial photos published",
-    licenses: "Business license, award certificate, registration certificate",
-    terms: "1. Eligibility · 2. Promotion tasks · 3. Payouts · 4. Account conduct",
-    faq: "How do I promote a track? · When are earnings paid? · How do upgrades work?",
-    about: "SoundCampaign helps artists and labels push songs viral across major streaming platforms.",
-  });
 
   return (
     <div className="space-y-4">
@@ -80,12 +70,9 @@ export function PlatformSettingsPanel() {
               </button>
               {isOpen && (
                 <div className="px-4 pb-4 border-t border-border pt-3">
-                  {r.key === "maintenance" && (
-                    <ToggleRow label="Enable maintenance mode" checked={maintenance} onChange={(v) => { setMaintenance(v); toast.success(v ? "Maintenance mode on" : "Maintenance mode off"); }} />
-                  )}
-                  {r.key === "registrations" && (
-                    <ToggleRow label="Allow new users to register" checked={registrations} onChange={(v) => { setRegistrations(v); toast.success(v ? "Registrations open" : "Registrations closed"); }} />
-                  )}
+                  {r.key === "maintenance" && <PlatformConfigEditor field="maintenance" />}
+                  {r.key === "registrations" && <PlatformConfigEditor field="registrations" />}
+                  {r.key === "bonuses" && <PlatformConfigEditor field="welcomeBonus" />}
                   {r.key === "activities" && (
                     <div className="space-y-6">
                       <MembershipLevels />
@@ -98,27 +85,13 @@ export function PlatformSettingsPanel() {
                   {r.key === "trending" && <TrendingSongsEditor />}
                   {r.key === "events" && <EventsRewardsEditor />}
                   {(r.key === "whatsapp" || r.key === "telegram") && <SupportContactEditor channel={r.key} />}
-                  {!["maintenance", "registrations", "activities", "wallets", "trending", "events", "whatsapp", "telegram"].includes(r.key) && (
-                    <div className="space-y-2">
-                      <Textarea rows={3} value={text[r.key] ?? ""} onChange={(e) => setText((p) => ({ ...p, [r.key]: e.target.value }))} />
-                      <Button size="sm" onClick={() => toast.success(`${r.title} saved`)}>Save</Button>
-                    </div>
-                  )}
+                  {(r.key === "testimonials" || r.key === "licenses" || r.key === "terms" || r.key === "faq" || r.key === "about") && <PlatformConfigEditor field={r.key} />}
                 </div>
               )}
             </div>
           );
         })}
       </div>
-    </div>
-  );
-}
-
-function ToggleRow({ label, checked, onChange }: { label: string; checked: boolean; onChange: (v: boolean) => void }) {
-  return (
-    <div className="flex items-center justify-between">
-      <span className="text-sm">{label}</span>
-      <Switch checked={checked} onCheckedChange={onChange} />
     </div>
   );
 }

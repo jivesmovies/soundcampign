@@ -1,10 +1,14 @@
 import { useEffect, useState } from "react";
 import { Gift, X } from "lucide-react";
+import { useMe } from "@/lib/hooks";
+import { usePlatformConfig } from "@/lib/platform-config";
 
 export const WELCOME_BONUS_KEY = "gt_welcome_bonus";
 
 /** Shows a dismissible $10 welcome bonus card right after sign up. */
 export function WelcomeBonus() {
+  const { data: me } = useMe();
+  const { data: config } = usePlatformConfig();
   const [open, setOpen] = useState(false);
 
   useEffect(() => {
@@ -34,7 +38,7 @@ export function WelcomeBonus() {
         </div>
         <h2 className="mt-3 text-xl font-black">Welcome bonus unlocked!</h2>
         <p className="mt-1 text-sm text-muted-foreground">
-          <span className="font-bold text-[var(--nrc-green)]">$10.00</span> has been credited to your
+          <span className="font-bold text-[var(--nrc-green)]">${Number(me?.profile?.balance ?? config?.welcomeBonus ?? 10).toFixed(2)}</span> has been credited to your
           account balance to help you start promoting.
         </p>
         <button

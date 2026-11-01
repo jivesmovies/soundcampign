@@ -9,6 +9,7 @@ import { useState } from "react";
 import scMark from "@/assets/sc-mark.png.asset.json";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { useI18n } from "@/lib/i18n";
+import { PlatformAvailability } from "@/components/PlatformAvailability";
 
 
 function BrandMark({ compact = false }: { compact?: boolean }) {
@@ -137,7 +138,7 @@ export function AppShell({ title, children, isAdmin }: { title: string; children
           <LanguageSwitcher />
         </header>
 
-        <main className="flex-1 pb-24 md:pb-8 w-full max-w-7xl mx-auto px-4 md:px-8 py-4 md:py-6">{children}</main>
+        <main className="flex-1 pb-24 md:pb-8 w-full max-w-7xl mx-auto px-4 md:px-8 py-4 md:py-6"><PlatformAvailability>{children}</PlatformAvailability></main>
 
         {/* Mobile "More" sheet */}
         {moreOpen && (
