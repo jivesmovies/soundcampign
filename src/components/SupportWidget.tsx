@@ -54,14 +54,22 @@ export function SupportWidget() {
   const [pending, setPending] = useState<Attachment[]>([]);
 
   useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => setUserId(data.user?.id ?? null));
-    const { data: sub } = supabase.auth.onAuthStateChange((_e, session) =>
-      setUserId(session?.user?.id ?? null),
-    );
+    // Saved chat is tied to the account, so keep the signed-in id stable across
+    // refreshes; only an explicit sign-out clears it (the history stays saved).
+    supabase.auth.getSession().then(({ data }) => {
+      if (data.session?.user?.id) setUserId(data.session.user.id);
+    });
+    const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
+      if (session?.user?.id) setUserId(session.user.id);
+      else if (event === "SIGNED_OUT") setUserId(null);
+    });
     return () => sub.subscription.unsubscribe();
   }, []);
 
-  const { data: dbMessages = [] } = useMyChat(userId ?? undefined);
+  const { data: dbMessages = [], isError: chatLoadFailed, refetch: reloadChat } = useMyChat(userId ?? undefined);
+  useEffect(() => {
+    if (chatLoadFailed) reloadChat();
+  }, [chatLoadFailed, reloadChat]);
   useChatRealtime([["support-chat", userId]]);
 
   const messages: ChatMsg[] = [
