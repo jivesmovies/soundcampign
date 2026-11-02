@@ -225,6 +225,11 @@ export function SupportWidget() {
                     )}
                   </div>
                 ))}
+                {!userId && (
+                  <p className="text-center text-xs text-muted-foreground pt-2">
+                    Sign in to see your saved conversation with our team.
+                  </p>
+                )}
                 <div ref={endRef} />
               </div>
 
