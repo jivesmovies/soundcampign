@@ -231,13 +231,12 @@ function PartnerPage() {
       {pendingTxs.length > 0 && (
         <div className="mt-3 rounded-xl border border-[var(--nrc-gold)]/40 bg-[var(--nrc-gold)]/10 p-4 text-xs">
           <div className="font-bold text-[var(--nrc-gold)] mb-1 flex items-center gap-1.5">
-            <Clock className="w-3.5 h-3.5" /> Submission on hold · {formatMoney(holdAmount)}
+            <Clock className="w-3.5 h-3.5" /> Song on hold
           </div>
-          <span className="font-semibold">{titleOf(pendingTxs[0].note)}</span> was started but not submitted.
-          Submit it to return the cost plus profit to your balance.
+          <span className="font-semibold">{titleOf(pendingTxs[0].note)}</span> is on hold. Please resubmit to continue.
           <button onClick={() => resumePending(pendingTxs[0])}
             className="mt-3 w-full bg-[var(--nrc-gold)] text-black text-xs font-bold py-2 rounded-md">
-            Resume Submission
+            Resubmit Song
           </button>
         </div>
       )}
