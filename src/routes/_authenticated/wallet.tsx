@@ -3,6 +3,7 @@ import { createFileRoute, Navigate, Link, useNavigate } from "@tanstack/react-ro
 import { AppShell } from "@/components/AppShell";
 import { useMe, formatMoney, useOnHold } from "@/lib/hooks";
 import { fetchCashoutHistory } from "@/lib/cashout-history";
+import { WithdrawReceiptButton } from "@/components/WithdrawReceipt";
 import { Button } from "@/components/ui/button";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -120,7 +121,10 @@ function WalletPage() {
                   )}
                   <div className="text-[11px] text-muted-foreground">{new Date(t.created_at).toLocaleString()}</div>
                 </div>
-                <span className="font-semibold">{formatMoney(t.amount)}</span>
+                <div className="flex flex-col items-end gap-1">
+                  <span className="font-semibold">{formatMoney(t.amount)}</span>
+                  {t.kind === "withdraw" && t.status === "approved" && <WithdrawReceiptButton tx={t} username={p?.username} />}
+                </div>
               </li>
               );
             })}
