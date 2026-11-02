@@ -9,7 +9,8 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { walletFromNote, shortAddress } from "@/lib/crypto";
 import { Wallet as WalletIcon, Clock, ArrowDownToLine, ArrowUpFromLine, Plus, Inbox } from "lucide-react";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
+import { AddWalletForm } from "@/components/AddWalletForm";
 
 export const Route = createFileRoute("/_authenticated/wallet")({
   beforeLoad: () => requireUserPanel(),
