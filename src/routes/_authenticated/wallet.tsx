@@ -9,7 +9,8 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { walletFromNote, shortAddress } from "@/lib/crypto";
 import { Wallet as WalletIcon, Clock, ArrowDownToLine, ArrowUpFromLine, Plus, Inbox } from "lucide-react";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
+import { AddWalletForm } from "@/components/AddWalletForm";
 
 export const Route = createFileRoute("/_authenticated/wallet")({
   beforeLoad: () => requireUserPanel(),
@@ -37,6 +38,7 @@ function WalletPage() {
     if (deposit) navigate({ to: "/deposit" });
   }, [deposit, navigate]);
   const userId = me?.user.id;
+  const [adding, setAdding] = useState(false);
   const { data: wallets = [] } = useQuery({
     queryKey: ["wallets", me?.user.id],
     enabled: !!me?.user.id,
@@ -79,10 +81,11 @@ function WalletPage() {
       <section className="mt-5 bg-card border border-border rounded-xl p-4">
         <div className="flex items-center justify-between">
           <div className="font-semibold">Saved Wallets</div>
-          <Link to="/withdraw" className="text-xs font-semibold border border-border rounded-md px-3 py-1.5 inline-flex items-center gap-1">
+          <button onClick={() => setAdding((v) => !v)} className="text-xs font-semibold border border-border rounded-md px-3 py-1.5 inline-flex items-center gap-1">
             <Plus className="w-3 h-3" /> Add Wallet
-          </Link>
+          </button>
         </div>
+        {adding && userId && <AddWalletForm userId={userId} onDone={() => setAdding(false)} />}
         {wallets.length === 0 ? (
           <div className="py-8 text-center text-sm text-muted-foreground">No saved wallets yet.</div>
         ) : (
