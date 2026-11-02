@@ -122,13 +122,18 @@ export function SupportWidget() {
       toast.error("Please sign in to chat with support.");
       return;
     }
-    setInput("");
+    if (viewingAs) {
+      toast.error("Viewing as a member is read-only. Reply from the Admin Live Chat.");
+      return;
+    }
     const files = pending.map((f) => ({ name: f.name, type: f.type }));
-    setPending([]);
     try {
       await sendChatMessage({ userId, sender: "user", body: text, attachments: files });
-      qc.invalidateQueries({ queryKey: ["support-chat", userId] });
+      setInput("");
+      setPending([]);
+      await qc.invalidateQueries({ queryKey: ["support-chat", userId] });
     } catch (err: any) {
+      // Keep the typed message so nothing is lost when sending fails.
       toast.error(err.message ?? "Could not send message");
     }
   };
