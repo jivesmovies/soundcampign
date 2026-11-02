@@ -37,6 +37,9 @@ function WithdrawPage() {
   const [adding, setAdding] = useState(false);
   const [newAddress, setNewAddress] = useState("");
   const [newLabel, setNewLabel] = useState("");
+  const [mode, setMode] = useState<"saved" | "new">("saved");
+  const [pasteAddress, setPasteAddress] = useState("");
+  const [saveNew, setSaveNew] = useState(true);
 
   const { data: wallets = [] } = useQuery({
     queryKey: ["wallets", userId],
@@ -71,18 +74,26 @@ function WithdrawPage() {
   const submit = async () => {
     const value = Number(amount);
     if (!asset) return toast.error("Select a cryptocurrency.");
-    if (!walletId) return toast.error("Select a saved wallet.");
+    const pasted = pasteAddress.trim();
+    if (mode === "saved" && !walletId) return toast.error("Select a saved wallet or paste a new address.");
+    if (mode === "new" && (pasted.length < 12 || /\s/.test(pasted))) return toast.error("Paste a valid wallet address.");
     if (!value || value < MIN_WITHDRAWAL) return toast.error(`Minimum withdrawal is $${MIN_WITHDRAWAL.toFixed(2)}.`);
     if (value > balance) return toast.error("Amount exceeds your available balance.");
     setBusy(true);
     try {
-      const wallet = wallets.find((w) => w.id === walletId);
+      const address = mode === "new" ? pasted : wallets.find((w) => w.id === walletId)?.address ?? "";
+      if (!address) throw new Error("Select a wallet address.");
+      if (mode === "new" && saveNew && !wallets.some((w) => w.asset === asset && w.address === address)) {
+        const { error: saveErr } = await supabase.from("user_wallets").insert({ user_id: userId!, asset, address, label: null });
+        if (saveErr) toast.error(`Wallet not saved: ${saveErr.message}`);
+        else qc.invalidateQueries({ queryKey: ["wallets", userId] });
+      }
       const { error } = await supabase.from("mock_transactions").insert({
         user_id: userId!,
         kind: "withdraw",
         amount: value,
         status: "pending",
-        note: `Withdrawal · ${asset} · ${wallet?.address ?? ""}`,
+        note: `Withdrawal · ${asset} · ${address}`,
       });
       if (error) throw error;
       qc.invalidateQueries({ queryKey: ["me"] });
@@ -121,6 +132,26 @@ function WithdrawPage() {
         </Field>
 
         <div>
+          <div className="text-sm font-medium mb-1.5">Withdraw To</div>
+          <div className="grid grid-cols-2 gap-2 mb-3" role="radiogroup" aria-label="Wallet choice">
+            {(["saved", "new"] as const).map((m) => (
+              <button key={m} type="button" role="radio" aria-checked={mode === m} onClick={() => setMode(m)}
+                className={`text-sm font-semibold py-2 rounded-lg border ${mode === m ? "border-[var(--nrc-green)] bg-[var(--nrc-green)]/10" : "border-border"}`}>
+                {m === "saved" ? "Saved Wallet" : "Paste New Address"}
+              </button>
+            ))}
+          </div>
+
+          {mode === "new" ? (
+            <div className="space-y-2">
+              <input value={pasteAddress} onChange={(e) => setPasteAddress(e.target.value)} placeholder={`Paste ${asset || "crypto"} wallet address`}
+                aria-label="Wallet address" className="w-full bg-background border border-border rounded-lg px-3 py-2.5 text-sm font-mono" />
+              <label className="flex items-center gap-2 text-xs text-muted-foreground">
+                <input type="checkbox" checked={saveNew} onChange={(e) => setSaveNew(e.target.checked)} />
+                Save this address to my wallets
+              </label>
+            </div>
+          ) : (<>
           <div className="flex items-center justify-between mb-1.5">
             <div className="text-sm font-medium">Select Saved Wallet</div>
             <button onClick={() => setAdding((v) => !v)} className="text-xs font-semibold inline-flex items-center gap-1 border border-border rounded-md px-2 py-1">
@@ -137,6 +168,7 @@ function WithdrawPage() {
               <option key={w.id} value={w.id}>{w.label ? `${w.label} · ` : ""}{w.address.slice(0, 10)}…{w.address.slice(-6)}</option>
             ))}
           </select>
+
 
           {adding && (
             <div className="mt-3 rounded-lg border border-border p-3 space-y-2">
@@ -160,6 +192,7 @@ function WithdrawPage() {
               ))}
             </ul>
           )}
+          </>)}
         </div>
 
         <Field label="Amount (USD)">
