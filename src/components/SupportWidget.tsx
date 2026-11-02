@@ -4,6 +4,7 @@ import { X, Send, MessagesSquare, ArrowLeft, Paperclip, FileText } from "lucide-
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { useMyChat, useChatRealtime, sendChatMessage, markThreadRead } from "@/lib/chat";
+import { useMe } from "@/lib/hooks";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { ChatMessageBody } from "@/components/ChatMessageBody";
@@ -66,11 +67,17 @@ export function SupportWidget() {
     return () => sub.subscription.unsubscribe();
   }, []);
 
-  const { data: dbMessages = [], isError: chatLoadFailed, refetch: reloadChat } = useMyChat(userId ?? undefined);
+  // When an administrator uses "View as User", show that member's saved thread
+  // (read-only) instead of the administrator's own empty thread.
+  const { data: me } = useMe();
+  const viewingAs = !!me?.viewingAs;
+  const threadId = viewingAs ? me!.user.id : userId;
+
+  const { data: dbMessages = [], isError: chatLoadFailed, refetch: reloadChat } = useMyChat(threadId ?? undefined);
   useEffect(() => {
     if (chatLoadFailed) reloadChat();
   }, [chatLoadFailed, reloadChat]);
-  useChatRealtime([["support-chat", userId]]);
+  useChatRealtime([["support-chat", threadId]]);
 
   const messages: ChatMsg[] = [
     {
@@ -92,8 +99,8 @@ export function SupportWidget() {
   }, [dbMessages.length, view]);
 
   useEffect(() => {
-    if (open && view === "chat" && userId) markThreadRead(userId, "user");
-  }, [open, view, userId, dbMessages.length]);
+    if (open && view === "chat" && userId && !viewingAs) markThreadRead(userId, "user");
+  }, [open, view, userId, viewingAs, dbMessages.length]);
 
   if (pathname.startsWith("/admin")) return null;
 
