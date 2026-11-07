@@ -8,9 +8,12 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { chatBodyText, encodeChatDocument } from "@/lib/chat-format";
 import { toast } from "sonner";
 
-export function ChatReplyComposer({ disabled, onSend }: {
+export function ChatReplyComposer({ disabled, onSend, initialContent, submitLabel = "Send", onCancel }: {
   disabled: boolean;
   onSend: (body: string) => Promise<void>;
+  initialContent?: object | string;
+  submitLabel?: string;
+  onCancel?: () => void;
 }) {
   const [sending, setSending] = useState(false);
   const editor = useEditor({
@@ -23,7 +26,7 @@ export function ChatReplyComposer({ disabled, onSend }: {
       }),
       Highlight,
     ],
-    content: "",
+    content: initialContent ?? "",
     editable: !disabled,
     parseOptions: { preserveWhitespace: "full" },
     editorProps: {
@@ -93,9 +96,10 @@ export function ChatReplyComposer({ disabled, onSend }: {
           </div>
         </TooltipProvider>
         <EditorContent editor={editor} />
-        <div className="flex justify-end border-t border-border p-2">
-          <Button type="button" size="sm" onClick={send} aria-label="Send reply" disabled={disabled || sending || !state?.hasText}>
-            {sending ? <Loader2 className="animate-spin" /> : <Send />} Send
+        <div className="flex justify-end gap-2 border-t border-border p-2">
+          {onCancel && <Button type="button" size="sm" variant="ghost" onClick={onCancel} disabled={sending}>Cancel</Button>}
+          <Button type="button" size="sm" onClick={send} aria-label={submitLabel === "Send" ? "Send reply" : submitLabel} disabled={disabled || sending || !state?.hasText}>
+            {sending ? <Loader2 className="animate-spin" /> : <Send />} {submitLabel}
           </Button>
         </div>
       </div>

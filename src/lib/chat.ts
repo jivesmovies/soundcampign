@@ -14,6 +14,7 @@ export type SupportMessage = {
   read_by_admin: boolean;
   read_by_user: boolean;
   created_at: string;
+  edited_at?: string | null;
 };
 
 const asMessages = (rows: any[] | null | undefined): SupportMessage[] =>
@@ -133,6 +134,19 @@ export function toggleMessageSelection(selected: string[], id: string): string[]
 }
 
 /** Admin: delete specific messages by id. */
+/** Super Admin: edit the text of an administrator message (marked as edited). */
+export async function editChatMessage(id: string, body: string) {
+  if (!chatBodyText(body).trim()) throw new Error("Message cannot be empty.");
+  const { data, error } = await supabase
+    .from("support_messages")
+    .update({ body, edited_at: new Date().toISOString() })
+    .eq("id", id)
+    .eq("sender", "admin")
+    .select("id");
+  if (error) throw error;
+  if (!data?.length) throw new Error("You can only edit administrator messages.");
+}
+
 export async function deleteChatMessages(ids: string[]) {
   if (!ids.length) return;
   const { error } = await supabase.from("support_messages").delete().in("id", ids);

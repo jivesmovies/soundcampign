@@ -85,6 +85,13 @@
       "when": 1793533863022,
       "tag": "0011_atomic_admin_fund_adjustments",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1794088970535,
+      "tag": "0012_chat_message_edited_at",
+      "breakpoints": true
     }
   ]
 }

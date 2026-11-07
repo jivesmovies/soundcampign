@@ -183,6 +183,7 @@ export type Database = {
           attachments: Json
           body: string
           created_at: string
+          edited_at: string | null
           id: string
           read_by_admin: boolean
           read_by_user: boolean
@@ -193,6 +194,7 @@ export type Database = {
           attachments?: Json
           body?: string
           created_at?: string
+          edited_at?: string | null
           id?: string
           read_by_admin?: boolean
           read_by_user?: boolean
@@ -203,6 +205,7 @@ export type Database = {
           attachments?: Json
           body?: string
           created_at?: string
+          edited_at?: string | null
           id?: string
           read_by_admin?: boolean
           read_by_user?: boolean

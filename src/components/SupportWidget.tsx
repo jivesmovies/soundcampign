@@ -13,7 +13,7 @@ import { useSupportContactsRealtime } from "@/lib/support-contacts";
 import { ReadTicks } from "@/components/ReadTicks";
 
 type Attachment = { name: string; type: string; url?: string };
-type ChatMsg = { id: string; from: "user" | "agent"; text: string; files?: Attachment[]; seen?: boolean };
+type ChatMsg = { id: string; from: "user" | "agent"; text: string; files?: Attachment[]; seen?: boolean; edited?: boolean };
 
 
 function DoubleChatIcon({ className }: { className?: string }) {
@@ -91,6 +91,7 @@ export function SupportWidget() {
       text: m.body,
       files: m.attachments,
       seen: m.read_by_admin,
+      edited: !!m.edited_at,
     })),
   ];
 
@@ -218,6 +219,7 @@ export function SupportWidget() {
 
                       </div>
                     )}
+                    {m.edited && <div className="text-[10px] opacity-70 mt-0.5 text-right">edited</div>}
                     {m.from === "user" && (
                       <div className="flex justify-end mt-0.5 opacity-80">
                         <ReadTicks seen={!!m.seen} />

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { MessageCircle, Paperclip, Trash2, CheckSquare, X } from "lucide-react";
+import { MessageCircle, Paperclip, Trash2, CheckSquare, X, Pencil } from "lucide-react";
 import { ChatReplyComposer } from "@/components/admin/ChatReplyComposer";
 import { ChatMessageBody } from "@/components/ChatMessageBody";
 import { ReadTicks } from "@/components/ReadTicks";
@@ -11,9 +11,11 @@ import {
   markThreadRead,
   toggleMessageSelection,
   deleteChatMessages,
+  editChatMessage,
   deleteChatThread,
   deleteAllChats,
 } from "@/lib/chat";
+import { decodeChatDocument } from "@/lib/chat-format";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import {
@@ -43,6 +45,7 @@ export function LiveChat({ initialThreadId }: { initialThreadId?: string | null 
   const [selected, setSelected] = useState<string[]>([]);
   const [confirm, setConfirm] = useState<Confirm>(null);
   const [deleting, setDeleting] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!activeId && threads.length) setActiveId(threads[0].id);
@@ -62,6 +65,7 @@ export function LiveChat({ initialThreadId }: { initialThreadId?: string | null 
   useEffect(() => {
     setSelecting(false);
     setSelected([]);
+    setEditingId(null);
   }, [activeId]);
 
   const send = async (body: string) => {
@@ -69,6 +73,8 @@ export function LiveChat({ initialThreadId }: { initialThreadId?: string | null 
     await sendChatMessage({ userId: active.id, sender: "admin", body });
     await qc.invalidateQueries({ queryKey: ["support-chat-all"] });
   };
+
+  const editingMsg = active?.messages.find((m) => m.id === editingId && m.sender === "admin") ?? null;
 
   const refresh = () => qc.invalidateQueries({ queryKey: ["support-chat-all"] });
 
@@ -198,7 +204,14 @@ export function LiveChat({ initialThreadId }: { initialThreadId?: string | null 
                     </div>
                   ))}
                   <div className="text-[10px] opacity-70 mt-1 flex items-center justify-end gap-1">
+                    {m.edited_at && <span>edited ·</span>}
                     <span>{new Date(m.created_at).toLocaleString()}</span>
+                    {!readOnly && !selecting && m.sender === "admin" && (
+                      <button type="button" aria-label="Edit message" onClick={() => setEditingId(m.id)}
+                        className="ml-1 rounded p-0.5 hover:bg-background/20">
+                        <Pencil className="w-3 h-3" />
+                      </button>
+                    )}
                     {m.sender === "admin" && <ReadTicks seen={m.read_by_user} />}
                   </div>
                 </div>
@@ -242,7 +255,23 @@ export function LiveChat({ initialThreadId }: { initialThreadId?: string | null 
                 Read-only access — you can view this conversation but cannot reply.
               </div>
             ) : (
-              <ChatReplyComposer key={active?.id ?? "empty"} disabled={!active} onSend={send} />
+              editingMsg ? (
+                <ChatReplyComposer
+                  key={`edit-${editingMsg.id}`}
+                  disabled={false}
+                  initialContent={decodeChatDocument(editingMsg.body) ?? editingMsg.body}
+                  submitLabel="Save edit"
+                  onCancel={() => setEditingId(null)}
+                  onSend={async (body) => {
+                    await editChatMessage(editingMsg.id, body);
+                    toast.success("Message updated.");
+                    setEditingId(null);
+                    await refresh();
+                  }}
+                />
+              ) : (
+                <ChatReplyComposer key={active?.id ?? "empty"} disabled={!active} onSend={send} />
+              )
             )
           )}
         </div>
