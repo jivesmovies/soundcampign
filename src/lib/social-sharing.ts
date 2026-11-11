@@ -1,5 +1,14 @@
-/** Branded 1200x630 share card served from /public; crawlers need an absolute URL. */
-export const SHARE_IMAGE_PATH = "/og-soundcampaign.jpg";
+/** Explicit empty image fields opt out instead of leaving room for screenshot fallbacks. */
+export const SHARED_LINK_POLICY = {
+  imageUrl: "",
+  cardType: "summary",
+  imageIndexing: "noimageindex, max-image-preview:none",
+} as const;
+
+/** Link-unfurl services only; ordinary browsers and search crawlers keep the full page. */
+export function isSocialPreviewCrawler(userAgent: string) {
+  return /\b(?:WhatsApp|TelegramBot|facebookexternalhit|Facebot|meta-externalagent|meta-externalfetcher|Twitterbot|LinkedInBot|Slackbot|Discordbot|SkypeUriPreview|Pinterestbot|redditbot|vkShare|Viber|Iframely|Embedly|Applebot-LinkPreview)\b/i.test(userAgent);
+}
 
 /** Only trust proxy-provided hosts in the sandbox; published URLs use the request origin. */
 export function requestOrigin(request: Request) {
@@ -8,17 +17,10 @@ export function requestOrigin(request: Request) {
   return sandboxHost ? `https://${sandboxHost}` : url.origin;
 }
 
-export function shareImageMeta(origin: string | undefined) {
-  if (!origin) return [];
-  const url = `${origin}${SHARE_IMAGE_PATH}`;
+export function sharedLinkMeta() {
   return [
-    { property: "og:image", content: url },
-    ...(url.startsWith("https://") ? [{ property: "og:image:secure_url", content: url }] : []),
-    { property: "og:image:type", content: "image/jpeg" },
-    { property: "og:image:width", content: "1200" },
-    { property: "og:image:height", content: "630" },
-    { property: "og:image:alt", content: "SoundCampaign logo — Music promotion with proven results" },
-    { name: "twitter:image", content: url },
-    { name: "twitter:image:alt", content: "SoundCampaign — Music promotion with proven results" },
+    { property: "og:image", content: SHARED_LINK_POLICY.imageUrl },
+    { name: "twitter:image", content: SHARED_LINK_POLICY.imageUrl },
+    { name: "twitter:card", content: SHARED_LINK_POLICY.cardType },
   ];
 }

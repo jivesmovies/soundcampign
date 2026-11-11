@@ -2,12 +2,12 @@ import { createStart, createMiddleware } from "@tanstack/react-start";
 
 import { renderErrorPage } from "./lib/error-page";
 import { attachSupabaseAuth } from "@/integrations/supabase/auth-attacher";
-import { ensureBrandedPreview } from "./lib/social-preview.server";
+import { suppressVisualPreview } from "./lib/social-preview.server";
 
-const brandedPreviewMiddleware = createMiddleware().server(async ({ next, request, handlerType }) => {
+const socialPreviewMiddleware = createMiddleware().server(async ({ next, request, handlerType }) => {
   const result = await next();
   if (handlerType === "serverFn") return result;
-  return { ...result, response: await ensureBrandedPreview(result.response, request) };
+  return { ...result, response: await suppressVisualPreview(result.response, request) };
 });
 
 const errorMiddleware = createMiddleware().server(async ({ next }) => {
@@ -27,5 +27,5 @@ const errorMiddleware = createMiddleware().server(async ({ next }) => {
 
 export const startInstance = createStart(() => ({
   functionMiddleware: [attachSupabaseAuth],
-  requestMiddleware: [errorMiddleware, brandedPreviewMiddleware],
+  requestMiddleware: [errorMiddleware, socialPreviewMiddleware],
 }));

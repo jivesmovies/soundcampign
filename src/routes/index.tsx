@@ -7,7 +7,7 @@ import heroAvatars from "@/assets/hero-avatars.png.asset.json";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState, type SyntheticEvent } from "react";
 import { CountUp } from "@/components/CountUp";
-import { shareImageMeta } from "@/lib/social-sharing";
+import { sharedLinkMeta } from "@/lib/social-sharing";
 import { getRequestOrigin } from "@/lib/origin.functions";
 import { usePlatformConfig } from "@/lib/platform-config";
 
@@ -41,9 +41,8 @@ export const Route = createFileRoute("/")({
           "Real playlist placements, TikTok creator campaigns and honest curator feedback for independent artists and labels.",
       },
       { property: "og:type", content: "website" },
-      { name: "twitter:card", content: "summary_large_image" },
       { property: "og:url", content: `${loaderData ?? ""}/` },
-      ...shareImageMeta(loaderData),
+      ...sharedLinkMeta(),
       { name: "twitter:title", content: "SoundCampaign — Music Promotion" },
       { name: "twitter:description", content: "Real playlist placements, TikTok creator campaigns and honest curator feedback for artists." },
     ],

@@ -1,15 +1,22 @@
 import { describe, expect, it } from "vitest";
-import { requestOrigin, shareImageMeta } from "./social-sharing";
+import { isSocialPreviewCrawler, requestOrigin, SHARED_LINK_POLICY } from "./social-sharing";
 
-describe("SoundCampaign preview URLs", () => {
-  it("uses the SoundCampaign JPEG on the domain serving the page", () => {
-    const origin = requestOrigin(new Request("https://soundcampaign.online/dashboard"));
-    const images = shareImageMeta(origin);
-    expect(images.find((tag) => "property" in tag && tag.property === "og:image")?.content)
-      .toBe("https://soundcampaign.online/og-soundcampaign.jpg");
-    expect(images.find((tag) => "name" in tag && tag.name === "twitter:image")?.content)
-      .toBe("https://soundcampaign.online/og-soundcampaign.jpg");
+describe("SoundCampaign shared-link policy", () => {
+  it("does not supply a thumbnail or request a large visual preview", () => {
+    expect(SHARED_LINK_POLICY.imageUrl).toBe("");
+    expect(SHARED_LINK_POLICY.cardType).toBe("summary");
+    expect(SHARED_LINK_POLICY.imageIndexing).toBe("noimageindex, max-image-preview:none");
   });
+
+  it.each(["WhatsApp/2.26", "TelegramBot (like TwitterBot)", "facebookexternalhit/1.1", "Twitterbot/1.0", "LinkedInBot/1.0", "Slackbot-LinkExpanding 1.0", "Discordbot/2.0"])(
+    "identifies %s for metadata-only sharing responses",
+    (userAgent) => expect(isSocialPreviewCrawler(userAgent)).toBe(true),
+  );
+
+  it.each(["Mozilla/5.0 Chrome/131 Safari/537.36", "Mozilla/5.0 iPhone Mobile Safari/604.1", "Googlebot/2.1", "bingbot/2.0", ""])(
+    "preserves full page delivery for %s",
+    (userAgent) => expect(isSocialPreviewCrawler(userAgent)).toBe(false),
+  );
 
   it("uses the published origin rather than untrusted forwarded hosts", () => {
     const request = new Request("https://www.soundcampaign.online/auth", {

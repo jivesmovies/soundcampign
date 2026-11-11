@@ -15,7 +15,7 @@ import { CountrySelect } from "@/components/CountrySelect";
 import { Loader2, User, Mail, Lock, Phone, KeyRound, Eye, EyeOff, Ticket } from "lucide-react";
 import { z } from "zod";
 import { WELCOME_BONUS_KEY } from "@/components/WelcomeBonus";
-import { shareImageMeta } from "@/lib/social-sharing";
+import { sharedLinkMeta } from "@/lib/social-sharing";
 import { getRequestOrigin } from "@/lib/origin.functions";
 import { fetchPlatformConfig, usePlatformConfig } from "@/lib/platform-config";
 
@@ -40,9 +40,8 @@ export const Route = createFileRoute("/auth")({
       { property: "og:title", content: "Sign up — SoundCampaign Music Promotion" },
       { property: "og:description", content: "Create your SoundCampaign account to start promoting music." },
       { property: "og:type", content: "website" },
-      { name: "twitter:card", content: "summary_large_image" },
       { property: "og:url", content: `${loaderData ?? ""}/auth` },
-      ...shareImageMeta(loaderData),
+      ...sharedLinkMeta(),
       { name: "twitter:title", content: "SoundCampaign — Music Promotion" },
       { name: "twitter:description", content: "Real playlist placements, TikTok creator campaigns and honest curator feedback for artists." },
     ],

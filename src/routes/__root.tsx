@@ -93,7 +93,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { name: "application-name", content: "SoundCampaign" },
       { name: "apple-mobile-web-app-title", content: "SoundCampaign" },
       { name: "theme-color", content: "#0a0a0a" },
-      { name: "twitter:card", content: "summary_large_image" },
+      { name: "twitter:card", content: "summary" },
     ],
     links: [
       {
